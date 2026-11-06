@@ -1,0 +1,43 @@
+Sub CATMain()
+
+    Dim nomeBase
+    nomeBase = InputBox("Inserisci il nome del prodotto:", "xyzNivek - CATIA R19", "Prodotto Principale")
+    If nomeBase = "" Then Exit Sub
+
+    Dim nomeProdotto, nomeParte
+    nomeProdotto = nomeBase & "-00-00"
+    nomeParte = nomeProdotto & "-axs"
+
+    ' Crea il CATProduct principale
+    Dim productDoc
+    Set productDoc = CATIA.Documents.Add("Product")
+
+    Dim rootProduct
+    Set rootProduct = productDoc.Product
+    rootProduct.PartNumber = nomeProdotto
+    rootProduct.Definition = "Assieme principale"
+
+    ' Crea la CATPart dentro l'assieme
+    Dim newPartComp
+    Set newPartComp = rootProduct.Products.AddNewComponent("Part", nomeParte)
+
+    ' Rinomina l'istanza
+    newPartComp.Name = nomeParte
+    rootProduct.Update
+
+    ' Vincolo Fix
+    Dim constraints1
+    Set constraints1 = rootProduct.Connections("CATIAConstraints")
+
+    Dim refString
+    refString = rootProduct.Name & "/" & newPartComp.Name & "/!"
+
+    Dim reference1
+    Set reference1 = rootProduct.CreateReferenceFromName(refString)
+
+    Dim constraint1
+    Set constraint1 = constraints1.AddMonoEltCst(catCstTypeReference, reference1)
+
+    rootProduct.Update
+
+End Sub
