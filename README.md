@@ -1,7 +1,5 @@
 🚀 MACRO STRUTTURA CATIA V5
 
-Raccolta di macro in VBScript (.catvbs) per CATIA V5 (R19 e successive) progettate per automatizzare la creazione di assiemi, la gestione dei componenti, la struttura dei codici e dei Part Number all'interno dei tuoi progetti CAD.
-
 📋 Indice
 
     Descrizione delle Macro
@@ -37,7 +35,13 @@ Questo repository contiene script automatizzati per accelerare le operazioni rip
 
 Per installare ed eseguire le macro in CATIA V5:
 
-    Clona o scarica il repository (o copia il codice dei file .catvbs).
+    Clona o scarica il repository.
+    ----------------------------------------------------------------------------------------------------------------
+    È possibile inserire una Toolbar personalizzata con le Macro per eseguirle con un click:
+    1. Creazione della Toolbar : Customize - Toolbars - New 
+    2. Inserimento delle Macro : Customize - Commands - Macros - Trascina le tue macro nella Toolbars appena creata.
+    *RINOMINAZIONE DELLA MACRO "PR: PRODOTTO" | "GR: GRUPPO" | "PT: PARTE"*
+    ----------------------------------------------------------------------------------------------------------------
 
 👤 Autore
 
