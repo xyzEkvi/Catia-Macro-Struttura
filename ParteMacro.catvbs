@@ -1,0 +1,171 @@
+' ============================================================
+' xyzEkvi - CATIA V5 R19
+' Versione: v.1.0
+' ============================================================
+
+Function Pad2(n)
+    If IsNumeric(n) Then
+        Pad2 = Right("0" & CStr(n), 2)
+    Else
+        Pad2 = CStr(n)
+    End If
+End Function
+
+Function EsisteNome(prods, nome)
+    Dim k, cPartNum
+    EsisteNome = False
+    On Error Resume Next
+    For k = 1 To prods.Count
+        cPartNum = prods.Item(k).PartNumber
+        If cPartNum = nome Then
+            EsisteNome = True
+            Exit Function
+        End If
+    Next
+    On Error GoTo 0
+End Function
+
+Sub CATMain()
+
+    ' =========================================================
+    ' 0. PULIZIA CRONOLOGIA E MEMORIA INIZIALE
+    ' =========================================================
+    On Error Resume Next
+    CATIA.ClearUndo
+    CATIA.StartCommand "Clear History"
+    Err.Clear
+    On Error GoTo 0
+
+    Dim TITOLO, domanda
+    TITOLO = "xyzEkvi - CATIA R19"
+
+    Dim activeDoc
+    On Error Resume Next
+    Set activeDoc = CATIA.ActiveDocument
+    Err.Clear
+    On Error GoTo 0
+
+    If activeDoc Is Nothing Then
+        MsgBox "Nessun documento attivo in CATIA.", 16, TITOLO
+        Exit Sub
+    End If
+
+    If InStr(LCase(activeDoc.Name), ".catproduct") = 0 Then
+        MsgBox "Il documento attivo non e' un CATProduct.", 16, TITOLO
+        Exit Sub
+    End If
+
+    Dim rootProduct
+    Set rootProduct = activeDoc.Product
+
+    ' Verifica se l'utente ha selezionato un sotto-prodotto specifico nell'albero
+    Dim selection
+    Set selection = activeDoc.Selection
+    
+    Dim targetProduct
+    Set targetProduct = Nothing
+
+    If selection.Count > 0 Then
+        On Error Resume Next
+        Set targetProduct = selection.Item(1).Value
+        If Not targetProduct Is Nothing Then
+            If TypeName(targetProduct) = "Part" Then
+                MsgBox "Hai selezionato una Parte. Seleziona un Sotto-Prodotto (CATProduct) nell'albero.", 48, TITOLO
+                Exit Sub
+            End If
+        End If
+        Err.Clear
+        On Error GoTo 0
+    End If
+
+    ' Se non è stato selezionato nulla, usiamo il prodotto principale come fallback
+    If targetProduct Is Nothing Then
+        Set targetProduct = rootProduct
+    End If
+
+    Dim parentPartNum
+    parentPartNum = targetProduct.PartNumber
+    If parentPartNum = "" Then parentPartNum = "Assembly-00-00"
+
+    ' Estrae la base del nome (es. da "NomeProgetto-01-00" prende "NomeProgetto-01")
+    Dim baseName
+    Dim dashPos
+    dashPos = InStrRev(parentPartNum, "-")
+    
+    If dashPos > 0 Then
+        baseName = Left(parentPartNum, dashPos - 1)
+    Else
+        baseName = parentPartNum
+    End If
+
+    ' Trova automaticamente il primo progressivo libero per la parte (es. -01, -02...)
+    Dim productsList
+    Set productsList = targetProduct.Products
+
+    Dim i, candidateName
+    i = 1
+    Do
+        candidateName = baseName & "-" & Pad2(i)
+        If Not EsisteNome(productsList, candidateName) Then Exit Do
+        i = i + 1
+    Loop
+
+    domanda = "Inserisci il nome o numero della nuova parte:"
+    Dim userInput
+    userInput = InputBox(domanda, TITOLO, candidateName)
+
+    If Trim(userInput) = "" Then Exit Sub
+
+    Dim partName
+    partName = Trim(userInput)
+
+    ' =========================================================
+    ' FIREWALL: CONTROLLO DUPLICATI
+    ' =========================================================
+    If EsisteNome(productsList, partName) Then
+        MsgBox "La parte " & partName & " esiste gia' in questo gruppo!", 48, TITOLO
+        Exit Sub
+    End If
+
+    ' =========================================================
+    ' 1. CREAZIONE DELLA PARTE NEL SOTTO-PRODOTTO
+    ' =========================================================
+    Dim newPartComp
+    On Error Resume Next
+    Set newPartComp = productsList.AddNewComponent("Part", partName)
+    Err.Clear
+    On Error GoTo 0
+
+    If newPartComp Is Nothing Then
+        MsgBox "Errore: impossibile creare la parte " & partName, 16, TITOLO
+        Exit Sub
+    End If
+
+    ' Imposta PartNumber e ReferenceProduct
+    On Error Resume Next
+    newPartComp.PartNumber = partName
+    newPartComp.ReferenceProduct.PartNumber = partName
+    targetProduct.Update
+    rootProduct.Update
+    Err.Clear
+    On Error GoTo 0
+
+    ' =========================================================
+    ' 2. VINCOLO FIX PER BLOCCARE LA PARTE NELLO SPAZIO
+    ' =========================================================
+    On Error Resume Next
+    Dim pPath, cst, ref
+    pPath = targetProduct.Name & "/" & newPartComp.Name
+    Set cst = targetProduct.Connections("CATIAConstraints")
+    If Not cst Is Nothing Then
+        Set ref = targetProduct.CreateReferenceFromName(pPath & "/!" & pPath & "/")
+        If Not ref Is Nothing Then
+            cst.AddMonoEltCst catCstTypeReference, ref
+        End If
+    End If
+    targetProduct.Update
+    rootProduct.Update
+    Err.Clear
+    On Error GoTo 0
+
+End Sub
