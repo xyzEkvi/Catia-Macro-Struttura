@@ -18,15 +18,20 @@ Questo repository contiene script automatizzati per accelerare le operazioni rip
 
     ProdottoMacro (xyzNivek - CATIA R19)
 
-        Funzione principale: Genera un nuovo documento di tipo CATProduct partendo da zero tramite un input utente, impostando automaticamente il PartNumber principale (es. -00-00), inserendo una parte di asse con suffisso -axs e bloccandola nello spazio.
+        Funzione principale: Genera un nuovo documento di tipo CATProduct partendo da zero tramite un input utente, impostando automaticamente il PartNumber principale (es. -00-00), inserendo una parte di asse con suffisso -axs applicando i vincoli di fissaggio (Fix).
 
     GruppoMacro (xyzNivek - CATIA R19)
         
-        Funzione principale: Automatizza la creazione di un sotto-prodotto basato sul nome del componente principale (es. estraendo la base con suffisso -00-00) e genera automaticamente una parte associata con suffisso -axs, applicando i vincoli di fissaggio (Fix) e ripulendo le istanze (gestione del suffisso .1).
+        Funzione principale: Genera un nuovo documento di tipo CATProduct basato sul nome del componente principale (es. estraendo la base con suffisso -00-00) e genera automaticamente una parte associata con suffisso -axs, applicando i vincoli di fissaggio (Fix).
+
+    ParteMacro (xyzNivek - CATIA R19)
+        
+        Funzione principale: Genera un nuovo documento di tipo CATPart nel sotto-prodotto basato sul nome del prodotto selezionato (es. estraendo la base con suffisso -00-00).
+
 
 🛠️ Requisiti
 
-    Software CAD: CATIA V5.
+    Software CAD: CATIA V5 (ENG)
 
 ⚙️ Installazione e Configurazione
 
