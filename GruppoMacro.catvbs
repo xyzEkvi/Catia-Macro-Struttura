@@ -1,0 +1,199 @@
+' ============================================================
+' xyzEkvi - CATIA V5 R19
+' Versione: v.1.0
+' ============================================================
+
+Function Pad2(n)
+    If IsNumeric(n) Then
+        Pad2 = Right("0" & CStr(n), 2)
+    Else
+        Pad2 = CStr(n)
+    End If
+End Function
+
+Function EsisteNome(prods, nome)
+    Dim k, cPartNum
+    EsisteNome = False
+    On Error Resume Next
+    For k = 1 To prods.Count
+        cPartNum = prods.Item(k).PartNumber
+        If cPartNum = nome Then
+            EsisteNome = True
+            Exit Function
+        End If
+    Next
+    On Error GoTo 0
+End Function
+
+Sub CATMain()
+
+    ' =========================================================
+    ' 0. PULIZIA CRONOLOGIA E MEMORIA INIZIALE
+    ' =========================================================
+    On Error Resume Next
+    CATIA.ClearUndo
+    CATIA.StartCommand "Clear History"
+    Err.Clear
+    On Error GoTo 0
+
+    Dim TITOLO, domanda
+    Dim activeDoc, rootProduct, productsList
+    Dim parentPartNum, baseName
+    Dim targetIndexStr, candidateName, userInput
+    Dim subProdName, partName
+    Dim subRoot, newSubProd, newPartComp
+    Dim cst, ref
+    Dim i
+    Dim p1, p2
+    Dim subDoc, subProduct
+
+    TITOLO = "xyzEkvi - CATIA R19"
+
+    On Error Resume Next
+    Set activeDoc = CATIA.ActiveDocument
+    Err.Clear
+    On Error GoTo 0
+
+    If activeDoc Is Nothing Then
+        MsgBox "Nessun documento attivo in CATIA.", 16, TITOLO
+        Exit Sub
+    End If
+
+    If InStr(LCase(activeDoc.Name), ".catproduct") = 0 Then
+        MsgBox "Il documento attivo non e' un CATProduct.", 16, TITOLO
+        Exit Sub
+    End If
+
+    Set rootProduct = activeDoc.Product
+    parentPartNum = rootProduct.PartNumber
+    If parentPartNum = "" Then parentPartNum = "Assembly-00-00"
+
+    If InStr(parentPartNum, "-00-00") > 0 Then
+        baseName = Left(parentPartNum, InStr(parentPartNum, "-00-00") - 1)
+    Else
+        baseName = parentPartNum
+    End If
+
+    Set productsList = rootProduct.Products
+
+    i = 1
+    Do
+        candidateName = baseName & "-" & Pad2(i) & "-00"
+        If Not EsisteNome(productsList, candidateName) Then Exit Do
+        i = i + 1
+    Loop
+
+    domanda = "Inserisci il numero o codice del gruppo:"
+    userInput = InputBox(domanda, TITOLO, Pad2(i))
+
+    If Trim(userInput) = "" Then Exit Sub
+
+    targetIndexStr = userInput
+    subProdName = baseName & "-" & targetIndexStr & "-00"
+    partName = subProdName & "-axs"
+
+    If EsisteNome(productsList, subProdName) Then
+        MsgBox "Il gruppo " & subProdName & " esiste gia'!", 48, TITOLO
+        Exit Sub
+    End If
+
+    ' =========================================================
+    ' 1. CREAZIONE SOTTO-PRODOTTO ESTERNO
+    ' =========================================================
+    On Error Resume Next
+    Set newSubProd = productsList.AddNewComponent("Product", "")
+    Err.Clear
+    On Error GoTo 0
+
+    If newSubProd Is Nothing Then
+        MsgBox "Errore: impossibile creare il sotto-prodotto.", 16, TITOLO
+        Exit Sub
+    End If
+
+    ' PartNumber prima, nome istanza per ultimo (con .1)
+    On Error Resume Next
+    newSubProd.PartNumber = subProdName
+    newSubProd.Name = subProdName & ".1"
+    rootProduct.Update
+    Err.Clear
+    On Error GoTo 0
+
+    Set subRoot = newSubProd
+    activeDoc.Activate ' Torna al documento principale
+
+    ' --- FIX DEL SOTTO-PRODOTTO NELLA RADICE ---
+    On Error Resume Next
+    Set cst = rootProduct.Connections("CATIAConstraints")
+    If Not cst Is Nothing Then
+        p1 = rootProduct.Name & "/" & newSubProd.Name
+        Set ref = rootProduct.CreateReferenceFromName(p1 & "/!" & p1 & "/")
+        
+        If Not ref Is Nothing Then
+            cst.AddMonoEltCst catCstTypeReference, ref
+        End If
+    End If
+    Err.Clear
+    On Error GoTo 0
+    rootProduct.Update
+
+    ' =========================================================
+    ' 2. CREAZIONE PARTE -axs DENTRO IL GRUPPO
+    ' =========================================================
+    On Error Resume Next
+    Set newPartComp = subRoot.Products.AddNewComponent("Part", partName)
+    Err.Clear
+    On Error GoTo 0
+
+    If newPartComp Is Nothing Then
+        MsgBox "Errore: impossibile creare la parte " & partName, 16, TITOLO
+        Exit Sub
+    End If
+
+    On Error Resume Next
+    newPartComp.PartNumber = partName
+    newPartComp.ReferenceProduct.PartNumber = partName
+    subRoot.Update
+    rootProduct.Update
+    Err.Clear
+    On Error GoTo 0
+
+    ' =========================================================
+    ' 3. FISSAGGIO DELLA PARTE -axs E RIMOZIONE DEL .1 SULL'ISTANZA
+    ' =========================================================
+    On Error Resume Next
+    
+    Set subDoc = newSubProd.ReferenceProduct.Parent
+    If subDoc Is Nothing Then
+        Set subDoc = newSubProd.ReferenceProduct.Parent
+    End If
+    
+    If Not subDoc Is Nothing Then
+        subDoc.Activate
+        
+        Set subProduct = subDoc.Product
+        
+        ' Rimuove il .1 dall'istanza della parte -axs nel sotto-prodotto
+        For i = 1 To subProduct.Products.Count
+            If InStr(subProduct.Products.Item(i).PartNumber, "-axs") > 0 Then
+                subProduct.Products.Item(i).Name = partName
+            End If
+        Next
+        
+        p2 = subProduct.Name & "/" & newPartComp.Name
+        
+        Set cst = subProduct.Connections("CATIAConstraints")
+        If Not cst Is Nothing Then
+            Set ref = subProduct.CreateReferenceFromName(p2 & "/!" & p2 & "/")
+            If Not ref Is Nothing Then
+                cst.AddMonoEltCst catCstTypeReference, ref
+            End If
+        End If
+        subProduct.Update
+    End If
+    Err.Clear
+    On Error GoTo 0
+    
+    activeDoc.Activate ' Torna al documento principale
+    rootProduct.Update
+
+End Sub
